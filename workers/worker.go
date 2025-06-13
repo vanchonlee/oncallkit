@@ -1,4 +1,4 @@
-package main
+package workers
 
 import (
 	"context"
@@ -8,32 +8,33 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/vanchonlee/oncallkit/db"
 )
 
 func StartWorker(pg *sql.DB, redis *redis.Client) {
 	for {
-		// Lấy alert từ queue
+		// Get alert from queue
 		res, err := redis.BLPop(context.Background(), 0, "alerts:queue").Result()
 		if err != nil || len(res) < 2 {
 			time.Sleep(time.Second)
 			continue
 		}
-		var alert Alert
+		var alert db.Alert
 		json.Unmarshal([]byte(res[1]), &alert)
 		log.Printf("Worker: processing alert %s", alert.ID)
 
-		// Lock alert (set key với TTL)
+		// Lock alert (set key with TTL)
 		lockKey := "alerts:lock:" + alert.ID
 		ok, _ := redis.SetNX(context.Background(), lockKey, "locked", 5*time.Minute).Result()
 		if !ok {
-			continue // Đã có worker khác xử lý
+			continue // Already processed by another worker
 		}
 
 		// Push FCM (mock)
 		log.Printf("Push FCM for alert %s", alert.ID)
-		// TODO: Gọi hàm push FCM thực tế ở đây
+		// TODO: Call FCM push function here
 
-		// Chờ ACK (giả lập 5 phút)
+		// Wait for ACK (mock 5 minutes)
 		ackKey := "alerts:ack:" + alert.ID
 		ack, _ := redis.BLPop(context.Background(), 5*60*time.Second, ackKey).Result()
 		if ack == nil || len(ack) < 2 {
@@ -41,7 +42,7 @@ func StartWorker(pg *sql.DB, redis *redis.Client) {
 			log.Printf("Escalate alert %s", alert.ID)
 			pg.Exec(`UPDATE alerts SET status='escalated', updated_at=$1 WHERE id=$2`, time.Now(), alert.ID)
 		} else {
-			// Đã ACK
+			// ACKed
 			log.Printf("Alert %s ACKed", alert.ID)
 			pg.Exec(`UPDATE alerts SET status='acked', updated_at=$1 WHERE id=$2`, time.Now(), alert.ID)
 		}

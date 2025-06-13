@@ -1,4 +1,4 @@
-module api
+module github.com/vanchonlee/oncallkit
 
 go 1.24.4
 
