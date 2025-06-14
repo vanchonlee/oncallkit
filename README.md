@@ -1,13 +1,13 @@
 # SLAR - Smart Live Alert & Response System
 
-## 📱 Tổng quan
+## 📱 Overview
 
-**SLAR** là hệ thống quản lý cảnh báo và phản hồi thông minh, bao gồm:
-- **Backend API** (Go + Gin + PostgreSQL + Redis) - Xử lý alerts, user management, on-call scheduling
-- **Mobile App** (Flutter) - Giao diện người dùng cho iOS/Android
-- **Worker System** - Xử lý FCM notifications và escalation tự động
+**SLAR** is a smart alert management and response system, including:
+- **Backend API** (Go + Gin + PostgreSQL + Redis) - Handles alerts, user management, on-call scheduling
+- **Mobile App** (Flutter) - User interface for iOS/Android
+- **Worker System** - Processes FCM notifications and automatic escalation
 
-## 🏗️ Kiến trúc hệ thống
+## 🏗️ System Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -31,34 +31,34 @@
                     └─────────────────┘
 ```
 
-## 🚀 Tính năng chính
+## 🚀 Key Features
 
 ### 📊 Dashboard & Monitoring
-- **Real-time dashboard** với alert statistics
-- **Uptime monitoring** cho các services
-- **On-call schedule** hiển thị người đang trực
-- **Alert trends** và analytics
+- **Real-time dashboard** with alert statistics
+- **Uptime monitoring** for services
+- **On-call schedule** showing current on-duty personnel
+- **Alert trends** and analytics
 
 ### 🚨 Alert Management
-- **Auto-assignment** alerts cho user đang on-call
-- **Multi-level escalation** với Redis TTL
-- **FCM push notifications** real-time
+- **Auto-assignment** of alerts to on-call users
+- **Multi-level escalation** with Redis TTL
+- **FCM push notifications** in real-time
 - **Alert lifecycle**: New → Acknowledged → Escalated → Closed
 - **Severity levels**: Critical, High, Medium, Low
 
 ### 👥 User & Team Management
-- **User CRUD** với roles (Engineer, Manager, Admin)
+- **User CRUD** with roles (Engineer, Manager, Admin)
 - **Team organization** (Platform, Backend, DevOps)
-- **On-call scheduling** với time slots
-- **FCM token management** cho notifications
+- **On-call scheduling** with time slots
+- **FCM token management** for notifications
 
 ### 🔄 Worker System
-- **Background processing** với Goroutines
-- **Redis queue** cho alert processing
-- **Auto-escalation** sau 5 phút nếu không ACK
-- **Concurrent processing** nhiều alerts đồng thời
+- **Background processing** with Goroutines
+- **Redis queue** for alert processing
+- **Auto-escalation** after 5 minutes if not acknowledged
+- **Concurrent processing** of multiple alerts
 
-## 📁 Cấu trúc dự án
+## 📁 Project Structure
 
 ```
 slar/
@@ -90,7 +90,7 @@ slar/
 - **Go 1.21+**
 - **PostgreSQL 15+**
 - **Redis 7+**
-- **Flutter 3.0+** (cho mobile app)
+- **Flutter 3.0+** (for mobile app)
 
 ### 1. Backend Setup
 
@@ -178,10 +178,10 @@ GET    /uptime              # Uptime statistics
 
 ### Backend API Testing
 ```bash
-# Sử dụng REST Client trong VS Code
-# Mở file: api/services/test.http
+# Use REST Client in VS Code
+# Open file: api/services/test.http
 
-# Hoặc sử dụng curl
+# Or use curl
 curl -X GET http://localhost:8080/alerts
 curl -X POST http://localhost:8080/alerts \
   -H "Content-Type: application/json" \
@@ -190,16 +190,16 @@ curl -X POST http://localhost:8080/alerts \
 
 ### Sample Data Setup
 ```bash
-# Chạy sample data script
-# Mở file: api/services/sample_data.http
-# Chạy từng request để tạo users và schedules mẫu
+# Run sample data script
+# Open file: api/services/sample_data.http
+# Execute each request to create sample users and schedules
 ```
 
 ## 🗄️ Database Schema
 
 ### Core Tables
-- **users** - User information và FCM tokens
-- **alerts** - Alert data với assignment
+- **users** - User information and FCM tokens
+- **alerts** - Alert data with assignment
 - **on_call_schedules** - On-call time slots
 - **schema_migrations** - Migration tracking
 
@@ -212,61 +212,61 @@ on_call_schedules.user_id → users.id
 ## 🔧 Migration Management
 
 ```bash
-# Xem trạng thái migrations
+# Check migration status
 ./mg.sh status
 
-# Chạy tất cả migrations
+# Run all migrations
 ./mg.sh up
 
-# Chạy migration cụ thể
+# Run specific migration
 ./mg.sh up 001_create_alerts
 
-# Tạo migration mới
+# Create new migration
 ./mg.sh create add_new_feature
 
-# Reset database (cẩn thận!)
+# Reset database (be careful!)
 ./mg.sh reset
 ```
 
 ## 📱 Mobile App Features
 
 ### Screens
-- **Dashboard** - Tổng quan alerts và on-call info
-- **Incidents List** - Danh sách alerts với filter
-- **Incident Detail** - Chi tiết alert với actions
-- **Uptime Monitor** - Monitoring services status
+- **Dashboard** - Alert overview and on-call info
+- **Incidents List** - Alert list with filters
+- **Incident Detail** - Alert details with actions
+- **Uptime Monitor** - Service status monitoring
 
 ### Key Components
-- **Real-time updates** với API polling
-- **Push notifications** từ FCM
+- **Real-time updates** with API polling
+- **Push notifications** from FCM
 - **Dark theme** UI design
-- **Responsive layout** cho tablet/phone
+- **Responsive layout** for tablet/phone
 
 ## 🔄 Workflow
 
 ### 1. Normal Alert Flow
 ```
-1. Alert được tạo (manual/API/monitoring)
-2. Auto-assign cho user đang on-call
+1. Alert is created (manual/API/monitoring)
+2. Auto-assign to current on-call user
 3. Push FCM notification
-4. User acknowledge trong app
-5. User resolve và close alert
+4. User acknowledges in app
+5. User resolves and closes alert
 ```
 
 ### 2. Escalation Flow
 ```
-1. Alert được tạo và assigned
-2. Push notification gửi đi
-3. Nếu không ACK sau 5 phút
+1. Alert is created and assigned
+2. Push notification sent
+3. If not acknowledged after 5 minutes
 4. Alert status → "escalated"
-5. Gửi escalation notification
+5. Send escalation notification
 ```
 
 ## 🚀 Deployment
 
 ### Docker Deployment
 ```bash
-# Build và run với Docker
+# Build and run with Docker
 docker-compose up -d
 
 # Scale workers
@@ -274,11 +274,11 @@ docker-compose up -d --scale worker=3
 ```
 
 ### Production Considerations
-- **Environment variables** cho config
-- **SSL/TLS** cho API endpoints
+- **Environment variables** for configuration
+- **SSL/TLS** for API endpoints
 - **Database backup** strategy
-- **Monitoring** với Prometheus/Grafana
-- **Log aggregation** với ELK stack
+- **Monitoring** with Prometheus/Grafana
+- **Log aggregation** with ELK stack
 
 ## 🤝 Contributing
 
@@ -290,13 +290,13 @@ docker-compose up -d --scale worker=3
 
 ## 📄 License
 
-MIT License - xem file LICENSE để biết thêm chi tiết.
+MIT License - see LICENSE file for more details.
 
 ## 📞 Support
 
 - **Issues**: GitHub Issues
 - **Documentation**: Wiki pages
-- **API Docs**: Postman collection trong `/docs`
+- **API Docs**: Postman collection in `/docs`
 
 ---
 
