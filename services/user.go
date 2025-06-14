@@ -21,7 +21,7 @@ func NewUserService(pg *sql.DB, redis *redis.Client) *UserService {
 
 // User CRUD operations
 func (s *UserService) ListUsers() ([]db.User, error) {
-	rows, err := s.PG.Query(`SELECT id, name, email, phone, role, team, fcm_token, is_active, created_at, updated_at FROM users WHERE is_active = true ORDER BY name`)
+	rows, err := s.PG.Query(`SELECT id, name, email, COALESCE(phone, '') as phone, role, team, COALESCE(fcm_token, '') as fcm_token, is_active, created_at, updated_at FROM users WHERE is_active = true ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (s *UserService) ListUsers() ([]db.User, error) {
 
 func (s *UserService) GetUser(id string) (db.User, error) {
 	var u db.User
-	err := s.PG.QueryRow(`SELECT id, name, email, phone, role, team, fcm_token, is_active, created_at, updated_at FROM users WHERE id = $1`, id).
+	err := s.PG.QueryRow(`SELECT id, name, email, COALESCE(phone, '') as phone, role, team, COALESCE(fcm_token, '') as fcm_token, is_active, created_at, updated_at FROM users WHERE id = $1`, id).
 		Scan(&u.ID, &u.Name, &u.Email, &u.Phone, &u.Role, &u.Team, &u.FCMToken, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
 	return u, err
 }
@@ -57,8 +57,29 @@ func (s *UserService) CreateUser(c *gin.Context) (db.User, error) {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	_, err := s.PG.Exec(`INSERT INTO users (id, name, email, phone, role, team, fcm_token, is_active, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-		user.ID, user.Name, user.Email, user.Phone, user.Role, user.Team, user.FCMToken, user.IsActive, user.CreatedAt, user.UpdatedAt)
+	// If password is provided, hash it
+	if user.PasswordHash != "" {
+		authService := NewAuthService(s.PG, s.Redis)
+		hashedPassword, err := authService.HashPassword(user.PasswordHash)
+		if err != nil {
+			return user, err
+		}
+		user.PasswordHash = hashedPassword
+	}
+
+	// Ensure empty strings for optional fields to avoid NULL issues
+	if user.Phone == "" {
+		user.Phone = ""
+	}
+	if user.FCMToken == "" {
+		user.FCMToken = ""
+	}
+	if user.PasswordHash == "" {
+		user.PasswordHash = ""
+	}
+
+	_, err := s.PG.Exec(`INSERT INTO users (id, name, email, phone, role, team, fcm_token, password_hash, is_active, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+		user.ID, user.Name, user.Email, user.Phone, user.Role, user.Team, user.FCMToken, user.PasswordHash, user.IsActive, user.CreatedAt, user.UpdatedAt)
 
 	return user, err
 }
@@ -72,8 +93,22 @@ func (s *UserService) UpdateUser(id string, c *gin.Context) (db.User, error) {
 	user.ID = id
 	user.UpdatedAt = time.Now()
 
-	_, err := s.PG.Exec(`UPDATE users SET name=$2, email=$3, phone=$4, role=$5, team=$6, fcm_token=$7, updated_at=$8 WHERE id=$1`,
-		user.ID, user.Name, user.Email, user.Phone, user.Role, user.Team, user.FCMToken, user.UpdatedAt)
+	// If password is provided, hash it
+	var err error
+	if user.PasswordHash != "" {
+		authService := NewAuthService(s.PG, s.Redis)
+		hashedPassword, hashErr := authService.HashPassword(user.PasswordHash)
+		if hashErr != nil {
+			return user, hashErr
+		}
+		user.PasswordHash = hashedPassword
+
+		_, err = s.PG.Exec(`UPDATE users SET name=$2, email=$3, phone=$4, role=$5, team=$6, fcm_token=$7, password_hash=$8, updated_at=$9 WHERE id=$1`,
+			user.ID, user.Name, user.Email, user.Phone, user.Role, user.Team, user.FCMToken, user.PasswordHash, user.UpdatedAt)
+	} else {
+		_, err = s.PG.Exec(`UPDATE users SET name=$2, email=$3, phone=$4, role=$5, team=$6, fcm_token=$7, updated_at=$8 WHERE id=$1`,
+			user.ID, user.Name, user.Email, user.Phone, user.Role, user.Team, user.FCMToken, user.UpdatedAt)
+	}
 
 	return user, err
 }
@@ -89,7 +124,7 @@ func (s *UserService) GetCurrentOnCallUser() (db.User, error) {
 	now := time.Now()
 
 	err := s.PG.QueryRow(`
-		SELECT u.id, u.name, u.email, u.phone, u.role, u.team, u.fcm_token, u.is_active, u.created_at, u.updated_at 
+		SELECT u.id, u.name, u.email, COALESCE(u.phone, '') as phone, u.role, u.team, COALESCE(u.fcm_token, '') as fcm_token, u.is_active, u.created_at, u.updated_at 
 		FROM users u 
 		JOIN on_call_schedules ocs ON u.id = ocs.user_id 
 		WHERE ocs.start_time <= $1 AND ocs.end_time >= $1 AND ocs.is_active = true AND u.is_active = true

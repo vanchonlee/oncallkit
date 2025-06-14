@@ -1,0 +1,82 @@
+### Get Admin/User Tokens
+### Base URL
+@baseUrl = http://localhost:8080
+
+### 1. Setup Admin User (if not exists)
+POST {{baseUrl}}/auth/setup-admin
+Content-Type: application/json
+
+### 2. Login as Admin to get Admin Token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@slar.com",
+    "password": "admin123"
+}
+
+### Response will contain:
+# {
+#   "user": {
+#     "id": "admin-user-id-001",
+#     "name": "Admin User",
+#     "email": "admin@slar.com",
+#     "role": "admin",
+#     ...
+#   },
+#   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+#   "message": "Login successful"
+# }
+
+### 3. Copy the token from response and use it like this:
+# Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+### 4. Test Token Validation
+GET {{baseUrl}}/users
+Authorization: Bearer {{your_token_here}}
+
+### 5. Create a Regular User (using admin token)
+POST {{baseUrl}}/users
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+    "name": "Test User",
+    "email": "test@slar.com",
+    "phone": "+1234567890",
+    "role": "engineer",
+    "team": "Backend Team",
+    "password": "testpass123"
+}
+
+### 6. Login as Regular User
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "test@slar.com",
+    "password": "testpass123"
+}
+
+### 7. Test Different User Token
+GET {{baseUrl}}/users
+Authorization: Bearer {{user_token}}
+
+### Instructions:
+# 1. Run test #1 to setup admin user
+# 2. Run test #2 to get admin token
+# 3. Copy the "token" value from response
+# 4. Replace {{admin_token}} in other requests with the actual token
+# 5. Use format: Authorization: Bearer <your_token>
+
+### Example Token Usage:
+# Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYWRtaW4tdXNlci1pZC0wMDEiLCJlbWFpbCI6ImFkbWluQHNsYXIuY29tIiwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzM3MDI0MDAwLCJpYXQiOjE3MzY5Mzc2MDB9.signature_here
+
+### Token Structure:
+# Header: {"alg":"HS256","typ":"JWT"}
+# Payload: {"user_id":"admin-user-id-001","email":"admin@slar.com","role":"admin","exp":1737024000,"iat":1736937600}
+# Signature: HMAC-SHA256 signature
+
+### Token Expiration:
+# Tokens expire after 24 hours
+# You'll need to login again to get a new token 

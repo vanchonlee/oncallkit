@@ -1,0 +1,357 @@
+### API Key System Tests
+### Base URL
+@baseUrl = http://localhost:8080
+@adminEmail = admin@slar.com
+@adminPassword = admin123
+
+### 1. Admin Login (to get authentication for API key management)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "{{adminEmail}}",
+    "password": "{{adminPassword}}"
+}
+
+### Copy token from above response and paste below
+@admin_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYWRtaW4tdXNlci1pZC0wMDEiLCJlbWFpbCI6ImFkbWluQHNsYXIuY29tIiwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzUwMDE0NTcyLCJpYXQiOjE3NDk5MjgxNzJ9.iYKheIi16TNcsc4fOoT4zEcYiS8EunuXDBD7lhYs1cc
+@api_key_value = slar_prod_4cabde7c516bf5331ecfa999
+
+### 1b. Test Admin Authentication
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "{{adminEmail}}",
+    "password": "{{adminPassword}}"
+}
+
+### 2. Create API Key for Production Monitoring
+POST {{baseUrl}}/api-keys
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+    "name": "Production Monitoring",
+    "description": "API key for production monitoring system alerts",
+    "environment": "prod",
+    "permissions": ["create_alerts", "read_alerts"],
+    "rate_limit_per_hour": 1000,
+    "rate_limit_per_day": 10000
+}
+
+### 3. Create API Key for Development
+POST {{baseUrl}}/api-keys
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+    "name": "Development Alerts",
+    "description": "API key for development environment",
+    "environment": "dev",
+    "permissions": ["create_alerts"],
+    "rate_limit_per_hour": 500,
+    "rate_limit_per_day": 5000
+}
+
+### 4. Create API Key with Expiration
+POST {{baseUrl}}/api-keys
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+    "name": "Temporary Key",
+    "description": "Temporary API key for testing",
+    "environment": "test",
+    "permissions": ["create_alerts"],
+    "expires_at": "2024-12-31T23:59:59Z",
+    "rate_limit_per_hour": 100,
+    "rate_limit_per_day": 1000
+}
+
+### 5. List All API Keys
+GET {{baseUrl}}/api-keys
+Authorization: Bearer {{admin_token}}
+
+### 6. Get Specific API Key Details
+GET {{baseUrl}}/api-keys/{{api_key_id}}
+Authorization: Bearer {{admin_token}}
+
+### 7. Update API Key
+PUT {{baseUrl}}/api-keys/{{api_key_id}}
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+    "name": "Updated Production Monitoring",
+    "description": "Updated description for production monitoring",
+    "rate_limit_per_hour": 1500
+}
+
+### 8. Get API Key Statistics
+GET {{baseUrl}}/api-keys/stats
+Authorization: Bearer {{admin_token}}
+
+### 9. Test Webhook Alert with API Key (Success)
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "High CPU Usage Alert",
+    "description": "CPU usage has exceeded 90% on server prod-web-01",
+    "severity": "critical",
+    "source": "monitoring_system",
+    "metadata": {
+        "server": "prod-web-01",
+        "cpu_usage": "95%",
+        "timestamp": "2024-01-15T10:30:00Z"
+    }
+}
+
+### 10. Test Webhook Alert with Different Severities
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Memory Usage Warning",
+    "description": "Memory usage is at 80%",
+    "severity": "medium",
+    "source": "monitoring_system",
+    "metadata": {
+        "server": "prod-web-02",
+        "memory_usage": "80%"
+    }
+}
+
+### 11. Test Webhook Alert - Database Connection Issue
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Database Connection Failed",
+    "description": "Unable to connect to primary database server",
+    "severity": "critical",
+    "source": "database_monitor",
+    "metadata": {
+        "database": "primary_db",
+        "error": "connection_timeout",
+        "retry_count": 3
+    }
+}
+
+### 12. Test Webhook Alert - Service Down
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Service Unavailable",
+    "description": "Payment service is not responding",
+    "severity": "high",
+    "source": "service_monitor",
+    "metadata": {
+        "service": "payment_service",
+        "endpoint": "/api/payments",
+        "status_code": 503
+    }
+}
+
+### 13. Test Invalid API Key
+POST {{baseUrl}}/alert/webhook?apikey=invalid_key_123
+Content-Type: application/json
+
+{
+    "title": "Test Alert",
+    "description": "This should fail with invalid API key",
+    "severity": "low",
+    "source": "test"
+}
+
+### 14. Test Missing API Key
+POST {{baseUrl}}/alert/webhook
+Content-Type: application/json
+
+{
+    "title": "Test Alert",
+    "description": "This should fail with missing API key",
+    "severity": "low",
+    "source": "test"
+}
+
+### 15. Test Invalid Request Format
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Test Alert",
+    "description": "Missing required severity field",
+    "source": "test"
+}
+
+### 16. Test Rate Limiting (Send multiple requests quickly)
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Rate Limit Test 1",
+    "description": "Testing rate limiting",
+    "severity": "low",
+    "source": "rate_test"
+}
+
+### 17. Rate Limit Test 2
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Rate Limit Test 2",
+    "description": "Testing rate limiting",
+    "severity": "low",
+    "source": "rate_test"
+}
+
+### 18. Disable API Key
+PUT {{baseUrl}}/api-keys/{{api_key_id}}
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+    "is_active": false
+}
+
+### 19. Test Disabled API Key
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Test with Disabled Key",
+    "description": "This should fail with disabled API key",
+    "severity": "low",
+    "source": "test"
+}
+
+### 20. Re-enable API Key
+PUT {{baseUrl}}/api-keys/{{api_key_id}}
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+    "is_active": true
+}
+
+### 21. Regenerate API Key
+POST {{baseUrl}}/api-keys/{{api_key_id}}/regenerate
+Authorization: Bearer {{admin_token}}
+
+### 22. Test Old API Key (Should Fail)
+POST {{baseUrl}}/alert/webhook?apikey={{old_api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Test with Old Key",
+    "description": "This should fail with old API key",
+    "severity": "low",
+    "source": "test"
+}
+
+### 23. Test New API Key (Should Work)
+POST {{baseUrl}}/alert/webhook?apikey={{new_api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Test with New Key",
+    "description": "This should work with new API key",
+    "severity": "low",
+    "source": "test"
+}
+
+### 24. Get API Key Usage Logs
+GET {{baseUrl}}/api-keys/{{api_key_id}}/logs?limit=50&offset=0
+Authorization: Bearer {{admin_token}}
+
+### 25. Delete API Key
+DELETE {{baseUrl}}/api-keys/{{api_key_id}}
+Authorization: Bearer {{admin_token}}
+
+### 26. Test Deleted API Key
+POST {{baseUrl}}/alert/webhook?apikey={{deleted_api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Test with Deleted Key",
+    "description": "This should fail with deleted API key",
+    "severity": "low",
+    "source": "test"
+}
+
+### 27. Create API Key with All Permissions
+POST {{baseUrl}}/api-keys
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+    "name": "Full Access Key",
+    "description": "API key with all permissions",
+    "environment": "prod",
+    "permissions": [
+        "create_alerts",
+        "read_alerts", 
+        "manage_oncall",
+        "view_dashboard",
+        "manage_services"
+    ],
+    "rate_limit_per_hour": 2000,
+    "rate_limit_per_day": 20000
+}
+
+### 28. Test Different API Key Formats
+POST {{baseUrl}}/alert/webhook?apikey=wrong_format_key
+Content-Type: application/json
+
+{
+    "title": "Format Test",
+    "description": "Testing wrong API key format",
+    "severity": "low",
+    "source": "test"
+}
+
+### 29. Test Environment-Specific Key
+POST {{baseUrl}}/alert/webhook?apikey={{dev_api_key}}
+Content-Type: application/json
+
+{
+    "title": "Development Alert",
+    "description": "Alert from development environment",
+    "severity": "low",
+    "source": "dev_monitor"
+}
+
+### 30. Bulk Alert Creation Test
+POST {{baseUrl}}/alert/webhook?apikey={{api_key_value}}
+Content-Type: application/json
+
+{
+    "title": "Bulk Test Alert 1",
+    "description": "First alert in bulk test",
+    "severity": "medium",
+    "source": "bulk_test"
+}
+
+### Variables for Testing
+# Replace these with actual values from responses:
+# {{admin_token}} - JWT token from admin login
+# {{api_key_id}} - ID of created API key
+# {{api_key_value}} - Actual API key value (e.g., slar_prod_abc123...)
+# {{old_api_key_value}} - API key value before regeneration
+# {{new_api_key_value}} - API key value after regeneration
+# {{deleted_api_key_value}} - API key value of deleted key
+# {{dev_api_key}} - Development environment API key
+
+### Expected Results:
+# Tests 1-8: Should succeed with proper authentication
+# Test 9-12: Should create alerts successfully
+# Tests 13-15: Should fail with appropriate error messages
+# Tests 16-17: May hit rate limits depending on configuration
+# Tests 18-19: Should fail when key is disabled
+# Tests 20-23: Should work after re-enabling and regenerating
+# Tests 24-26: Should show usage logs and fail with deleted key
+# Tests 27-30: Should test various scenarios and permissions 

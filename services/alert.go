@@ -103,6 +103,25 @@ func (s *AlertService) CreateAlertFromRequest(c *gin.Context) (db.Alert, error) 
 	return alert, nil
 }
 
+// CreateAlert creates a new alert from an Alert struct
+func (s *AlertService) CreateAlert(alert *db.Alert) (*db.Alert, error) {
+	alert.ID = uuid.New().String()
+	alert.CreatedAt = time.Now()
+	alert.UpdatedAt = time.Now()
+
+	_, err := s.PG.Exec(`INSERT INTO alerts (id, title, description, status, created_at, updated_at, severity, source, assigned_to, assigned_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		alert.ID, alert.Title, alert.Description, alert.Status, alert.CreatedAt, alert.UpdatedAt, alert.Severity, alert.Source, alert.AssignedTo, alert.AssignedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add to Redis queue for processing
+	b, _ := json.Marshal(alert)
+	s.Redis.RPush(context.Background(), "alerts:queue", b)
+
+	return alert, nil
+}
+
 func (s *AlertService) GetAlert(id string) (db.AlertResponse, error) {
 	var a db.AlertResponse
 	var assignedTo sql.NullString

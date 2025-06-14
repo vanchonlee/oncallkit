@@ -18,12 +18,24 @@ func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	userService := services.NewUserService(pg, redis)
 	uptimeService := services.NewUptimeService(pg, redis)
 	alertManagerService := services.NewAlertManagerService(pg, alertService)
+	authService := services.NewAuthService(pg, redis)
+	apiKeyService := services.NewAPIKeyService(pg)
 
 	// Initialize handlers
 	alertHandler := handlers.NewAlertHandler(alertService)
 	userHandler := handlers.NewUserHandler(userService)
 	uptimeHandler := handlers.NewUptimeHandler(uptimeService)
 	alertManagerHandler := handlers.NewAlertManagerHandler(alertManagerService)
+	authHandler := handlers.NewAuthHandler(authService)
+	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService, alertService, userService)
+
+	// Initialize middleware
+	authMiddleware := handlers.NewAuthMiddleware(authService.JWTService)
+
+	// AUTHENTICATION
+	r.POST("/auth/login", authHandler.Login)
+	r.POST("/auth/change-password", authHandler.ChangePassword)
+	r.POST("/auth/setup-admin", authHandler.SetupAdmin)
 
 	// ALERTS
 	r.GET("/alerts", alertHandler.ListAlerts)
@@ -36,6 +48,22 @@ func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	// ALERTMANAGER INTEGRATION
 	r.POST("/alertmanager/webhook", alertManagerHandler.ReceiveWebhook)
 	r.GET("/alertmanager/info", alertManagerHandler.GetWebhookInfo)
+
+	// API KEY MANAGEMENT (requires JWT authentication)
+	apiKeyRoutes := r.Group("/api-keys")
+	apiKeyRoutes.Use(authMiddleware.JWTAuthMiddleware())
+	{
+		apiKeyRoutes.POST("", apiKeyHandler.CreateAPIKey)
+		apiKeyRoutes.GET("", apiKeyHandler.ListAPIKeys)
+		apiKeyRoutes.GET("/:id", apiKeyHandler.GetAPIKey)
+		apiKeyRoutes.PUT("/:id", apiKeyHandler.UpdateAPIKey)
+		apiKeyRoutes.DELETE("/:id", apiKeyHandler.DeleteAPIKey)
+		apiKeyRoutes.POST("/:id/regenerate", apiKeyHandler.RegenerateAPIKey)
+		apiKeyRoutes.GET("/stats", apiKeyHandler.GetAPIKeyStats)
+	}
+
+	// WEBHOOK ENDPOINTS (uses API key authentication)
+	r.POST("/alert/webhook", apiKeyHandler.WebhookAlert)
 
 	// USERS
 	r.GET("/users", userHandler.ListUsers)
@@ -54,7 +82,6 @@ func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	r.GET("/uptime/services", uptimeHandler.ListServices)
 	r.POST("/uptime/services", uptimeHandler.CreateService)
 	r.GET("/uptime/services/:id", uptimeHandler.GetService)
-	r.POST("/uptime/services/:id/check", uptimeHandler.CheckService)
 	r.GET("/uptime/services/:id/stats", uptimeHandler.GetServiceStats)
 	r.GET("/uptime/services/:id/history", uptimeHandler.GetServiceHistory)
 
