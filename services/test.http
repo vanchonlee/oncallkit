@@ -31,13 +31,13 @@ Content-Type: application/json
 GET http://localhost:8080/alerts/alert_id HTTP/1.1
 
 ### Acknowledge alert
-POST http://localhost:8080/alerts/alert_id/ack HTTP/1.1
+POST http://localhost:8080/alerts/cc3dbe6d-f0e7-413b-aac7-16d614b3b590/ack HTTP/1.1
 
 ### Un-acknowledge alert
 POST http://localhost:8080/alerts/alert_id/unack HTTP/1.1
 
 ### Close alert
-POST http://localhost:8080/alerts/alert_id/close HTTP/1.1
+POST http://localhost:8080/alerts/75bfdb4c-9962-45a1-a37e-20853da6d0d3/close HTTP/1.1
 
 # ========================================
 # USERS API TESTS

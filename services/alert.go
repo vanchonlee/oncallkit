@@ -21,27 +21,54 @@ func NewAlertService(pg *sql.DB, redis *redis.Client) *AlertService {
 	return &AlertService{PG: pg, Redis: redis}
 }
 
-func (s *AlertService) ListAlerts() ([]db.Alert, error) {
-	rows, err := s.PG.Query(`SELECT id, title, description, status, created_at, updated_at, severity, source, assigned_to, assigned_at FROM alerts ORDER BY created_at DESC LIMIT 100`)
+func (s *AlertService) ListAlerts() ([]db.AlertResponse, error) {
+	query := `
+		SELECT 
+			a.id, a.title, a.description, a.status, a.created_at, a.updated_at, 
+			a.severity, a.source, a.assigned_to, a.assigned_at,
+			u.name, u.email
+		FROM alerts a
+		LEFT JOIN users u ON a.assigned_to = u.id
+		ORDER BY a.created_at DESC 
+		LIMIT 100
+	`
+
+	rows, err := s.PG.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var alerts []db.Alert
+
+	var alerts []db.AlertResponse
 	for rows.Next() {
-		var a db.Alert
+		var a db.AlertResponse
 		var assignedTo sql.NullString
 		var assignedAt sql.NullTime
-		err := rows.Scan(&a.ID, &a.Title, &a.Description, &a.Status, &a.CreatedAt, &a.UpdatedAt, &a.Severity, &a.Source, &assignedTo, &assignedAt)
+		var userName sql.NullString
+		var userEmail sql.NullString
+
+		err := rows.Scan(
+			&a.ID, &a.Title, &a.Description, &a.Status, &a.CreatedAt, &a.UpdatedAt,
+			&a.Severity, &a.Source, &assignedTo, &assignedAt,
+			&userName, &userEmail,
+		)
 		if err != nil {
 			continue
 		}
+
 		if assignedTo.Valid {
 			a.AssignedTo = assignedTo.String
 		}
 		if assignedAt.Valid {
 			a.AssignedAt = &assignedAt.Time
 		}
+		if userName.Valid {
+			a.AssignedToName = userName.String
+		}
+		if userEmail.Valid {
+			a.AssignedToEmail = userEmail.String
+		}
+
 		alerts = append(alerts, a)
 	}
 	return alerts, nil
@@ -76,18 +103,42 @@ func (s *AlertService) CreateAlertFromRequest(c *gin.Context) (db.Alert, error) 
 	return alert, nil
 }
 
-func (s *AlertService) GetAlert(id string) (db.Alert, error) {
-	var a db.Alert
+func (s *AlertService) GetAlert(id string) (db.AlertResponse, error) {
+	var a db.AlertResponse
 	var assignedTo sql.NullString
 	var assignedAt sql.NullTime
-	err := s.PG.QueryRow(`SELECT id, title, description, status, created_at, updated_at, severity, source, assigned_to, assigned_at FROM alerts WHERE id=$1`, id).
-		Scan(&a.ID, &a.Title, &a.Description, &a.Status, &a.CreatedAt, &a.UpdatedAt, &a.Severity, &a.Source, &assignedTo, &assignedAt)
+	var userName sql.NullString
+	var userEmail sql.NullString
+
+	query := `
+		SELECT 
+			a.id, a.title, a.description, a.status, a.created_at, a.updated_at, 
+			a.severity, a.source, a.assigned_to, a.assigned_at,
+			u.name, u.email
+		FROM alerts a
+		LEFT JOIN users u ON a.assigned_to = u.id
+		WHERE a.id = $1
+	`
+
+	err := s.PG.QueryRow(query, id).Scan(
+		&a.ID, &a.Title, &a.Description, &a.Status, &a.CreatedAt, &a.UpdatedAt,
+		&a.Severity, &a.Source, &assignedTo, &assignedAt,
+		&userName, &userEmail,
+	)
+
 	if assignedTo.Valid {
 		a.AssignedTo = assignedTo.String
 	}
 	if assignedAt.Valid {
 		a.AssignedAt = &assignedAt.Time
 	}
+	if userName.Valid {
+		a.AssignedToName = userName.String
+	}
+	if userEmail.Valid {
+		a.AssignedToEmail = userEmail.String
+	}
+
 	return a, err
 }
 

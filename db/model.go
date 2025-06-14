@@ -39,6 +39,24 @@ type Alert struct {
 	AssignedAt  *time.Time `json:"assigned_at,omitempty"`
 }
 
+// AlertResponse includes user information for API responses
+type AlertResponse struct {
+	ID              string     `json:"id"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	Status          string     `json:"status"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	Severity        string     `json:"severity"`
+	Source          string     `json:"source"`
+	AckedBy         string     `json:"acked_by,omitempty"`
+	AckedAt         *time.Time `json:"acked_at,omitempty"`
+	AssignedTo      string     `json:"assigned_to,omitempty"`       // User ID
+	AssignedToName  string     `json:"assigned_to_name,omitempty"`  // User Name
+	AssignedToEmail string     `json:"assigned_to_email,omitempty"` // User Email
+	AssignedAt      *time.Time `json:"assigned_at,omitempty"`
+}
+
 // Uptime Monitoring Models
 type Service struct {
 	ID        string    `json:"id"`
