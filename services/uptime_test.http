@@ -61,7 +61,7 @@ Content-Type: application/json
 }
 
 ### Get specific service details
-GET http://localhost:8080/uptime/services/service-001 HTTP/1.1
+GET http://localhost:8080/uptime/services/8d3dcc45-709e-417b-adf8-ebfd7e44fce1 HTTP/1.1
 
 # ========================================
 # SERVICE CHECKING
@@ -81,7 +81,7 @@ POST http://localhost:8080/uptime/services/fail_service_id/check HTTP/1.1
 # ========================================
 
 ### Get 24h stats for a service
-GET http://localhost:8080/uptime/services/service-001/stats?period=24h HTTP/1.1
+GET http://localhost:8080/uptime/services/8d3dcc45-709e-417b-adf8-ebfd7e44fce1/stats?period=24h HTTP/1.1
 
 ### Get 1h stats
 GET http://localhost:8080/uptime/services/service-001/stats?period=1h HTTP/1.1
@@ -97,7 +97,7 @@ GET http://localhost:8080/uptime/services/service-001/stats?period=30d HTTP/1.1
 # ========================================
 
 ### Get last 24 hours of checks
-GET http://localhost:8080/uptime/services/service-001/history?hours=24 HTTP/1.1
+GET http://localhost:8080/uptime/services/8d3dcc45-709e-417b-adf8-ebfd7e44fce1/history?hours=24 HTTP/1.1
 
 ### Get last 2 hours of checks (for recent timeline)
 GET http://localhost:8080/uptime/services/service-001/history?hours=2 HTTP/1.1

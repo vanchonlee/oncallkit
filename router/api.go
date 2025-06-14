@@ -17,11 +17,13 @@ func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	alertService := services.NewAlertService(pg, redis)
 	userService := services.NewUserService(pg, redis)
 	uptimeService := services.NewUptimeService(pg, redis)
+	alertManagerService := services.NewAlertManagerService(pg, alertService)
 
 	// Initialize handlers
 	alertHandler := handlers.NewAlertHandler(alertService)
 	userHandler := handlers.NewUserHandler(userService)
 	uptimeHandler := handlers.NewUptimeHandler(uptimeService)
+	alertManagerHandler := handlers.NewAlertManagerHandler(alertManagerService)
 
 	// ALERTS
 	r.GET("/alerts", alertHandler.ListAlerts)
@@ -30,6 +32,10 @@ func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	r.POST("/alerts/:id/ack", alertHandler.AckAlert)
 	r.POST("/alerts/:id/unack", alertHandler.UnackAlert)
 	r.POST("/alerts/:id/close", alertHandler.CloseAlert)
+
+	// ALERTMANAGER INTEGRATION
+	r.POST("/alertmanager/webhook", alertManagerHandler.ReceiveWebhook)
+	r.GET("/alertmanager/info", alertManagerHandler.GetWebhookInfo)
 
 	// USERS
 	r.GET("/users", userHandler.ListUsers)

@@ -1,0 +1,374 @@
+# ========================================
+# ALERTMANAGER WEBHOOK TESTING
+# ========================================
+# Test AlertManager integration with SLAR
+
+### 1. Get AlertManager webhook info
+GET http://localhost:8080/alertmanager/info HTTP/1.1
+
+### 2. Test firing alert - Critical CPU usage
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "version": "4",
+  "groupKey": "123456789",
+  "truncatedAlerts": 0,
+  "status": "firing",
+  "receiver": "slar-webhook",
+  "groupLabels": {
+    "alertname": "HighCPUUsage"
+  },
+  "commonLabels": {
+    "alertname": "HighCPUUsage",
+    "instance": "prod-web-01",
+    "severity": "critical"
+  },
+  "commonAnnotations": {
+    "summary": "High CPU usage detected on prod-web-01"
+  },
+  "externalURL": "http://alertmanager.example.com",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "HighCPUUsage",
+        "instance": "prod-web-01",
+        "severity": "critical",
+        "job": "node-exporter",
+        "service": "web-server"
+      },
+      "annotations": {
+        "summary": "CPU usage is above 90% on prod-web-01",
+        "description": "CPU usage has been above 90% for more than 5 minutes"
+      },
+      "startsAt": "2025-06-14T16:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example.com/graph?g0.expr=cpu_usage&g0.tab=1",
+      "fingerprint": "cpu-high-prod-web-01"
+    }
+  ]
+}
+
+### 3. Test firing alert - Memory warning
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "version": "4",
+  "groupKey": "987654321",
+  "truncatedAlerts": 0,
+  "status": "firing",
+  "receiver": "slar-webhook",
+  "groupLabels": {
+    "alertname": "HighMemoryUsage"
+  },
+  "commonLabels": {
+    "alertname": "HighMemoryUsage",
+    "instance": "prod-db-01",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "High memory usage detected on prod-db-01"
+  },
+  "externalURL": "http://alertmanager.example.com",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "HighMemoryUsage",
+        "instance": "prod-db-01",
+        "severity": "warning",
+        "job": "postgres-exporter",
+        "service": "database"
+      },
+      "annotations": {
+        "summary": "Memory usage is above 80% on prod-db-01",
+        "description": "Memory usage has been consistently high for the last 10 minutes"
+      },
+      "startsAt": "2025-06-14T16:05:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example.com/graph?g0.expr=memory_usage&g0.tab=1",
+      "fingerprint": "memory-high-prod-db-01"
+    }
+  ]
+}
+
+### 4. Test firing alert - Disk space info
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "version": "4",
+  "groupKey": "456789123",
+  "truncatedAlerts": 0,
+  "status": "firing",
+  "receiver": "slar-webhook",
+  "groupLabels": {
+    "alertname": "DiskSpaceWarning"
+  },
+  "commonLabels": {
+    "alertname": "DiskSpaceWarning",
+    "instance": "prod-app-01",
+    "severity": "info"
+  },
+  "commonAnnotations": {
+    "summary": "Disk space warning on prod-app-01"
+  },
+  "externalURL": "http://alertmanager.example.com",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "DiskSpaceWarning",
+        "instance": "prod-app-01",
+        "severity": "info",
+        "job": "node-exporter",
+        "service": "application",
+        "mountpoint": "/var/log"
+      },
+      "annotations": {
+        "summary": "Disk space is at 75% on prod-app-01:/var/log",
+        "description": "Disk usage on /var/log partition is approaching the warning threshold"
+      },
+      "startsAt": "2025-06-14T16:10:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example.com/graph?g0.expr=disk_usage&g0.tab=1",
+      "fingerprint": "disk-warning-prod-app-01"
+    }
+  ]
+}
+
+### 5. Test multiple alerts in one webhook
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "version": "4",
+  "groupKey": "multi-alert-group",
+  "truncatedAlerts": 0,
+  "status": "firing",
+  "receiver": "slar-webhook",
+  "groupLabels": {
+    "cluster": "production"
+  },
+  "commonLabels": {
+    "cluster": "production",
+    "environment": "prod"
+  },
+  "commonAnnotations": {
+    "summary": "Multiple issues detected in production cluster"
+  },
+  "externalURL": "http://alertmanager.example.com",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "ServiceDown",
+        "instance": "prod-api-01",
+        "severity": "critical",
+        "service": "api-gateway"
+      },
+      "annotations": {
+        "summary": "API Gateway service is down on prod-api-01"
+      },
+      "startsAt": "2025-06-14T16:15:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example.com/graph?g0.expr=up&g0.tab=1",
+      "fingerprint": "service-down-api-01"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "HighLatency",
+        "instance": "prod-api-02",
+        "severity": "warning",
+        "service": "api-gateway"
+      },
+      "annotations": {
+        "summary": "High response latency on prod-api-02"
+      },
+      "startsAt": "2025-06-14T16:16:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example.com/graph?g0.expr=latency&g0.tab=1",
+      "fingerprint": "latency-high-api-02"
+    }
+  ]
+}
+
+### 6. Check created alerts
+GET http://localhost:8080/alerts HTTP/1.1
+
+### 7. Test resolved alert - CPU usage back to normal
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "version": "4",
+  "groupKey": "123456789",
+  "truncatedAlerts": 0,
+  "status": "resolved",
+  "receiver": "slar-webhook",
+  "groupLabels": {
+    "alertname": "HighCPUUsage"
+  },
+  "commonLabels": {
+    "alertname": "HighCPUUsage",
+    "instance": "prod-web-01",
+    "severity": "critical"
+  },
+  "commonAnnotations": {
+    "summary": "High CPU usage resolved on prod-web-01"
+  },
+  "externalURL": "http://alertmanager.example.com",
+  "alerts": [
+    {
+      "status": "resolved",
+      "labels": {
+        "alertname": "HighCPUUsage",
+        "instance": "prod-web-01",
+        "severity": "critical",
+        "job": "node-exporter",
+        "service": "web-server"
+      },
+      "annotations": {
+        "summary": "CPU usage is back to normal on prod-web-01",
+        "description": "CPU usage has dropped below 90% threshold"
+      },
+      "startsAt": "2025-06-14T16:00:00Z",
+      "endsAt": "2025-06-14T16:30:00Z",
+      "generatorURL": "http://prometheus.example.com/graph?g0.expr=cpu_usage&g0.tab=1",
+      "fingerprint": "cpu-high-prod-web-01"
+    }
+  ]
+}
+
+### 8. Test resolved alert - Memory usage back to normal
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "version": "4",
+  "groupKey": "987654321",
+  "truncatedAlerts": 0,
+  "status": "resolved",
+  "receiver": "slar-webhook",
+  "groupLabels": {
+    "alertname": "HighMemoryUsage"
+  },
+  "commonLabels": {
+    "alertname": "HighMemoryUsage",
+    "instance": "prod-db-01",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Memory usage resolved on prod-db-01"
+  },
+  "externalURL": "http://alertmanager.example.com",
+  "alerts": [
+    {
+      "status": "resolved",
+      "labels": {
+        "alertname": "HighMemoryUsage",
+        "instance": "prod-db-01",
+        "severity": "warning",
+        "job": "postgres-exporter",
+        "service": "database"
+      },
+      "annotations": {
+        "summary": "Memory usage is back to normal on prod-db-01",
+        "description": "Memory usage has stabilized below 80%"
+      },
+      "startsAt": "2025-06-14T16:05:00Z",
+      "endsAt": "2025-06-14T16:35:00Z",
+      "generatorURL": "http://prometheus.example.com/graph?g0.expr=memory_usage&g0.tab=1",
+      "fingerprint": "memory-high-prod-db-01"
+    }
+  ]
+}
+
+### 9. Check alerts after resolution
+GET http://localhost:8080/alerts HTTP/1.1
+
+### 10. Test alert without fingerprint (will generate ID from labels)
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "version": "4",
+  "groupKey": "no-fingerprint",
+  "truncatedAlerts": 0,
+  "status": "firing",
+  "receiver": "slar-webhook",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "TestAlert",
+        "instance": "test-server",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Test alert without fingerprint"
+      },
+      "startsAt": "2025-06-14T16:40:00Z",
+      "endsAt": "0001-01-01T00:00:00Z"
+    }
+  ]
+}
+
+### 11. Test invalid webhook payload (should return 400)
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "invalid": "payload",
+  "missing": "required_fields"
+}
+
+### 12. Test webhook with empty alerts array
+POST http://localhost:8080/alertmanager/webhook HTTP/1.1
+Content-Type: application/json
+
+{
+  "version": "4",
+  "status": "firing",
+  "receiver": "slar-webhook",
+  "alerts": []
+}
+
+# ========================================
+# TESTING SCENARIOS
+# ========================================
+
+# Scenario 1: Basic Alert Lifecycle
+# 1. Run request #2 (firing CPU alert)
+# 2. Check alerts with request #6
+# 3. Run request #7 (resolve CPU alert)
+# 4. Check alerts again with request #9
+
+# Scenario 2: Multiple Alerts
+# 1. Run requests #2, #3, #4 (multiple firing alerts)
+# 2. Check alerts with request #6
+# 3. Resolve some with requests #7, #8
+# 4. Check final state with request #9
+
+# Scenario 3: Error Handling
+# 1. Run request #11 (invalid payload)
+# 2. Run request #12 (empty alerts)
+# 3. Verify proper error responses
+
+# Scenario 4: Alert ID Generation
+# 1. Run request #10 (no fingerprint)
+# 2. Check that alert ID is generated from labels
+# 3. Verify alert appears in GET /alerts
+
+# ========================================
+# QUICK TEST SEQUENCE
+# ========================================
+
+# 1. Get webhook info: Request #1
+# 2. Create firing alerts: Requests #2, #3, #4
+# 3. Check created alerts: Request #6
+# 4. Resolve alerts: Requests #7, #8
+# 5. Check final state: Request #9 
