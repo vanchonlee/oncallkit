@@ -16,10 +16,12 @@ func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	// Initialize services
 	alertService := services.NewAlertService(pg, redis)
 	userService := services.NewUserService(pg, redis)
+	uptimeService := services.NewUptimeService(pg, redis)
 
 	// Initialize handlers
 	alertHandler := handlers.NewAlertHandler(alertService)
 	userHandler := handlers.NewUserHandler(userService)
+	uptimeHandler := handlers.NewUptimeHandler(uptimeService)
 
 	// ALERTS
 	r.GET("/alerts", alertHandler.ListAlerts)
@@ -41,13 +43,18 @@ func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	r.GET("/oncall/schedules", userHandler.ListOnCallSchedules)
 	r.POST("/oncall/schedules", userHandler.CreateOnCallSchedule)
 
-	// DASHBOARD, UPTIME, ...
+	// UPTIME MONITORING
+	r.GET("/uptime", uptimeHandler.GetUptimeDashboard)
+	r.GET("/uptime/services", uptimeHandler.ListServices)
+	r.POST("/uptime/services", uptimeHandler.CreateService)
+	r.GET("/uptime/services/:id", uptimeHandler.GetService)
+	r.POST("/uptime/services/:id/check", uptimeHandler.CheckService)
+	r.GET("/uptime/services/:id/stats", uptimeHandler.GetServiceStats)
+	r.GET("/uptime/services/:id/history", uptimeHandler.GetServiceHistory)
+
+	// DASHBOARD
 	r.GET("/dashboard", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "Dashboard endpoint - TODO implement"})
-	})
-
-	r.GET("/uptime", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "Uptime endpoint - TODO implement"})
 	})
 
 	// TODO: notes, tags, log, recipients endpoints

@@ -13,8 +13,9 @@ func main() {
 	pg := db.NewPostgres("postgres://slar:slar@localhost:5432/slar?sslmode=disable")
 	redis := db.NewRedis("localhost:6379")
 
-	// Start worker
+	// Start workers
 	go workers.StartWorker(pg, redis)
+	go workers.StartUptimeWorker(pg, redis)
 
 	// Start API server
 	r := router.NewGinRouter(pg, redis)

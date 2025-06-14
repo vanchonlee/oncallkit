@@ -1,0 +1,306 @@
+### Uptime Monitoring API Tests
+### Base URL: http://localhost:8080
+
+# ========================================
+# UPTIME DASHBOARD
+# ========================================
+
+### Get uptime dashboard (main endpoint for Flutter app)
+GET http://localhost:8080/uptime HTTP/1.1
+
+# ========================================
+# SERVICE MANAGEMENT
+# ========================================
+
+### List all monitored services
+GET http://localhost:8080/uptime/services HTTP/1.1
+
+### Create a new service to monitor
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Website",
+    "url": "https://soundworks-ai.com",
+    "type": "https",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 30,
+    "expected_status": 200,
+    "headers": {
+        "User-Agent": "SLAR-Monitor/1.0"
+    }
+}
+
+### Create another service (API endpoint)
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "API Health Check",
+    "url": "https://jsonplaceholder.typicode.com/posts/1",
+    "type": "https",
+    "method": "GET",
+    "interval": 180,
+    "timeout": 15,
+    "expected_status": 200
+}
+
+### Create a service that will fail (for testing)
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Test Failure",
+    "url": "https://httpstat.us/500",
+    "type": "https",
+    "method": "GET",
+    "interval": 120,
+    "timeout": 10,
+    "expected_status": 200
+}
+
+### Get specific service details
+GET http://localhost:8080/uptime/services/service-001 HTTP/1.1
+
+# ========================================
+# SERVICE CHECKING
+# ========================================
+
+### Manually trigger a check for a service
+POST http://localhost:8080/uptime/services/service-001/check HTTP/1.1
+
+### Check the API service
+POST http://localhost:8080/uptime/services/api_service_id/check HTTP/1.1
+
+### Check the failing service
+POST http://localhost:8080/uptime/services/fail_service_id/check HTTP/1.1
+
+# ========================================
+# STATISTICS & ANALYTICS
+# ========================================
+
+### Get 24h stats for a service
+GET http://localhost:8080/uptime/services/service-001/stats?period=24h HTTP/1.1
+
+### Get 1h stats
+GET http://localhost:8080/uptime/services/service-001/stats?period=1h HTTP/1.1
+
+### Get 7d stats
+GET http://localhost:8080/uptime/services/service-001/stats?period=7d HTTP/1.1
+
+### Get 30d stats
+GET http://localhost:8080/uptime/services/service-001/stats?period=30d HTTP/1.1
+
+# ========================================
+# SERVICE HISTORY
+# ========================================
+
+### Get last 24 hours of checks
+GET http://localhost:8080/uptime/services/service-001/history?hours=24 HTTP/1.1
+
+### Get last 2 hours of checks (for recent timeline)
+GET http://localhost:8080/uptime/services/service-001/history?hours=2 HTTP/1.1
+
+### Get last 1 hour of checks
+GET http://localhost:8080/uptime/services/service-001/history?hours=1 HTTP/1.1
+
+# ========================================
+# TESTING SCENARIOS
+# ========================================
+
+### SCENARIO 1: Create service and check it immediately
+# 1. Create service
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Google",
+    "url": "https://www.google.com",
+    "type": "https",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10,
+    "expected_status": 200
+}
+
+###
+# 2. Check the service immediately
+POST http://localhost:8080/uptime/services/420dcf82-7259-4737-a44a-fb85f2accf7a/check HTTP/1.1
+
+###
+# 3. Get stats (should show 1 check)
+GET http://localhost:8080/uptime/services/420dcf82-7259-4737-a44a-fb85f2accf7a/stats?period=1h HTTP/1.1
+
+###
+# 4. Get history
+GET http://localhost:8080/uptime/services/420dcf82-7259-4737-a44a-fb85f2accf7a/history?hours=1 HTTP/1.1
+
+### SCENARIO 2: Test SSL certificate monitoring
+# Create HTTPS service to test SSL info
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "GitHub (SSL Test)",
+    "url": "https://github.com",
+    "type": "https",
+    "method": "GET",
+    "interval": 600,
+    "timeout": 30,
+    "expected_status": 200
+}
+
+###
+# Check it to get SSL certificate info
+POST http://localhost:8080/uptime/services/fc8b40d4-8efd-42c3-8402-f419e4069297/check HTTP/1.1
+
+###
+### SCENARIO 3: Test downtime detection
+# Create service that will be down
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Down Service",
+    "url": "https://httpstat.us/503",
+    "type": "https",
+    "method": "GET",
+    "interval": 60,
+    "timeout": 5,
+    "expected_status": 200
+}
+
+###
+# Check it (should create downtime incident and alert)
+POST http://localhost:8080/uptime/services/down_service_id/check HTTP/1.1
+
+###
+# Check if alert was created
+GET http://localhost:8080/alerts HTTP/1.1
+
+### SCENARIO 4: Test slow response detection
+# Create service with very short timeout
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Slow Service",
+    "url": "https://httpstat.us/200?sleep=6000",
+    "type": "https",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10,
+    "expected_status": 200
+}
+
+###
+# Check it (should timeout or be slow)
+POST http://localhost:8080/uptime/services/slow_service_id/check HTTP/1.1
+
+# ========================================
+# ERROR HANDLING TESTS
+# ========================================
+
+### Test invalid service creation (missing URL)
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Invalid Service"
+}
+
+### Test invalid service creation (invalid URL)
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Invalid URL Service",
+    "url": "not-a-valid-url",
+    "type": "http"
+}
+
+### Test get non-existent service
+GET http://localhost:8080/uptime/services/non-existent-id HTTP/1.1
+
+### Test check non-existent service
+POST http://localhost:8080/uptime/services/non-existent-id/check HTTP/1.1
+
+### Test get stats for non-existent service
+GET http://localhost:8080/uptime/services/non-existent-id/stats HTTP/1.1
+
+# ========================================
+# INTEGRATION WITH ALERTS
+# ========================================
+
+### After running downtime tests, check if alerts were created
+GET http://localhost:8080/alerts HTTP/1.1
+
+### Check if on-call user was assigned to uptime alerts
+GET http://localhost:8080/oncall/current HTTP/1.1
+
+# ========================================
+# PERFORMANCE TESTS
+# ========================================
+
+### Create multiple services for load testing
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Load Test 1",
+    "url": "https://httpbin.org/delay/1",
+    "type": "https",
+    "method": "GET",
+    "interval": 60,
+    "timeout": 5,
+    "expected_status": 200
+}
+
+### Create another load test service
+POST http://localhost:8080/uptime/services HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Load Test 2",
+    "url": "https://httpbin.org/status/200",
+    "type": "https",
+    "method": "GET",
+    "interval": 60,
+    "timeout": 5,
+    "expected_status": 200
+}
+
+### Check all services at once (simulate worker behavior)
+# Note: In real scenario, the uptime worker will do this automatically
+
+# ========================================
+# NOTES FOR TESTING
+# ========================================
+
+# 1. Replace {{service_id}} with actual IDs from responses
+# 2. Run migration first: ./mg.sh up
+# 3. Make sure PostgreSQL and Redis are running
+# 4. Start the API server: go run cmd/main.go
+# 5. The uptime worker will automatically check services every minute
+# 6. Check logs to see worker activity
+# 7. Use the dashboard endpoint to see all data in Flutter-friendly format
+
+# Expected Response Format for /uptime endpoint:
+# {
+#   "services": [
+#     {
+#       "service": { ... service details ... },
+#       "current_status": "up|down|unknown",
+#       "last_response_time": 1234,
+#       "stats_24h": { ... 24h statistics ... },
+#       "stats_30d": { ... 30d statistics ... },
+#       "ssl_info": { ... SSL certificate info ... },
+#       "monitoring_enabled": true
+#     }
+#   ],
+#   "summary": {
+#     "total_services": 5,
+#     "active_services": 4
+#   }
+# } 

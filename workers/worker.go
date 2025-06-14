@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -97,4 +98,84 @@ func handleAlertAck(pg *sql.DB, redis *redis.Client, alert db.Alert) {
 		// Sleep before next check (poll every 10 seconds)
 		time.Sleep(10 * time.Second)
 	}
+}
+
+func StartUptimeWorker(pg *sql.DB, redis *redis.Client) {
+	log.Println("Uptime worker started, monitoring services...")
+
+	// TODO: Get monitored services from database
+	// For now, using hardcoded examples
+	services := []struct {
+		Name string
+		URL  string
+	}{
+		{"Google", "https://google.com"},
+	}
+
+	ticker := time.NewTicker(30 * time.Second) // Check every 30 seconds
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			for _, service := range services {
+				go checkServiceUptime(pg, redis, service.Name, service.URL)
+			}
+		}
+	}
+}
+
+func checkServiceUptime(pg *sql.DB, redis *redis.Client, serviceName, url string) {
+	start := time.Now()
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	duration := time.Since(start)
+
+	isUp := err == nil && resp != nil && resp.StatusCode >= 200 && resp.StatusCode < 400
+	if resp != nil {
+		resp.Body.Close()
+	}
+
+	status := "up"
+	if !isUp {
+		status = "down"
+		log.Printf("Uptime worker: %s is DOWN (error: %v)", serviceName, err)
+
+		// Generate alert for downtime
+		alert := db.Alert{
+			ID:          generateAlertID(),
+			Title:       "Service Down: " + serviceName,
+			Description: "Service " + serviceName + " is down",
+			Status:      "open",
+			Severity:    "critical",
+			Source:      "uptime-monitor",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+
+		// Add alert to queue
+		alertJSON, _ := json.Marshal(alert)
+		redis.LPush(context.Background(), "alerts:queue", alertJSON)
+		log.Printf("Uptime worker: queued downtime alert for %s", serviceName)
+	} else {
+		log.Printf("Uptime worker: %s is UP (response time: %v)", serviceName, duration)
+	}
+
+	// Store uptime check result in Redis
+	uptimeKey := "uptime:" + serviceName
+	uptimeData := map[string]interface{}{
+		"status":        status,
+		"response_time": duration.Milliseconds(),
+		"checked_at":    time.Now().Unix(),
+		"url":           url,
+	}
+	uptimeJSON, _ := json.Marshal(uptimeData)
+	redis.Set(context.Background(), uptimeKey, uptimeJSON, 5*time.Minute)
+}
+
+func generateAlertID() string {
+	return time.Now().Format("20060102150405") + "-uptime"
 }
