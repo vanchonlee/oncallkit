@@ -1,0 +1,1 @@
+psql -U slar -d slar -h localhost -f 001_create_alerts.sql

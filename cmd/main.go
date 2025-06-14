@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// Connect to DB and Redis
-	pg := db.NewPostgres("localhost:5432")
+	pg := db.NewPostgres("postgres://slar:slar@localhost:5432/slar?sslmode=disable")
 	redis := db.NewRedis("localhost:6379")
 
 	// Start worker
