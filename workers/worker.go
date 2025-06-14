@@ -103,26 +103,58 @@ func handleAlertAck(pg *sql.DB, redis *redis.Client, alert db.Alert) {
 func StartUptimeWorker(pg *sql.DB, redis *redis.Client) {
 	log.Println("Uptime worker started, monitoring services...")
 
-	// TODO: Get monitored services from database
-	// For now, using hardcoded examples
-	services := []struct {
-		Name string
-		URL  string
-	}{
-		{"Google", "https://google.com"},
-	}
-
 	ticker := time.NewTicker(30 * time.Second) // Check every 30 seconds
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
+			// Get active services from database
+			services, err := getActiveServices(pg)
+			if err != nil {
+				log.Printf("Uptime worker: failed to get services from database: %v", err)
+				continue
+			}
+
 			for _, service := range services {
 				go checkServiceUptime(pg, redis, service.Name, service.URL)
 			}
 		}
 	}
+}
+
+func getActiveServices(pg *sql.DB) ([]db.Service, error) {
+	rows, err := pg.Query(`
+		SELECT id, name, url, type, method, interval_seconds, timeout_seconds, expected_status 
+		FROM services 
+		WHERE is_active = true AND is_enabled = true
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var services []db.Service
+	for rows.Next() {
+		var service db.Service
+		err := rows.Scan(
+			&service.ID,
+			&service.Name,
+			&service.URL,
+			&service.Type,
+			&service.Method,
+			&service.Interval,
+			&service.Timeout,
+			&service.ExpectedStatus,
+		)
+		if err != nil {
+			log.Printf("Error scanning service: %v", err)
+			continue
+		}
+		services = append(services, service)
+	}
+
+	return services, nil
 }
 
 func checkServiceUptime(pg *sql.DB, redis *redis.Client, serviceName, url string) {

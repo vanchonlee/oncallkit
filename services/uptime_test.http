@@ -21,7 +21,7 @@ Content-Type: application/json
 
 {
     "name": "Website",
-    "url": "https://soundworks-ai.com",
+    "url": "https://github.com",
     "type": "https",
     "method": "GET",
     "interval": 300,
