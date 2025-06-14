@@ -12,8 +12,14 @@ import (
 
 func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	r := gin.Default()
+
+	// Initialize services
 	alertService := services.NewAlertService(pg, redis)
+	userService := services.NewUserService(pg, redis)
+
+	// Initialize handlers
 	alertHandler := handlers.NewAlertHandler(alertService)
+	userHandler := handlers.NewUserHandler(userService)
 
 	// ALERTS
 	r.GET("/alerts", alertHandler.ListAlerts)
@@ -22,6 +28,18 @@ func NewGinRouter(pg *sql.DB, redis *redis.Client) *gin.Engine {
 	r.POST("/alerts/:id/ack", alertHandler.AckAlert)
 	r.POST("/alerts/:id/unack", alertHandler.UnackAlert)
 	r.POST("/alerts/:id/close", alertHandler.CloseAlert)
+
+	// USERS
+	r.GET("/users", userHandler.ListUsers)
+	r.POST("/users", userHandler.CreateUser)
+	r.GET("/users/:id", userHandler.GetUser)
+	r.PUT("/users/:id", userHandler.UpdateUser)
+	r.DELETE("/users/:id", userHandler.DeleteUser)
+
+	// ON-CALL
+	r.GET("/oncall/current", userHandler.GetCurrentOnCallUser)
+	r.GET("/oncall/schedules", userHandler.ListOnCallSchedules)
+	r.POST("/oncall/schedules", userHandler.CreateOnCallSchedule)
 
 	// DASHBOARD, UPTIME, ...
 	r.GET("/dashboard", func(c *gin.Context) {

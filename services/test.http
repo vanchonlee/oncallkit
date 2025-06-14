@@ -1,28 +1,232 @@
+# ========================================
+# ALERTS API TESTS
+# ========================================
+
+### Get all alerts
 GET http://localhost:8080/alerts HTTP/1.1
 
-###
-
+### Create new alert (auto-assigned to on-call user)
 POST http://localhost:8080/alerts HTTP/1.1
 Content-Type: application/json
 
 {
-    "title": "Test Alert",
-    "description": "This is a test alert",
-    "severity": "critical"
+    "title": "[Datadog] [P1] High CPU usage on production server",
+    "description": "CPU usage has exceeded 90% for the last 5 minutes on prod-web-01",
+    "severity": "critical",
+    "source": "datadog"
 }
 
-###
+### Create another alert
+POST http://localhost:8080/alerts HTTP/1.1
+Content-Type: application/json
 
-# Get all alerts
+{
+    "title": "[Prometheus] Database connection pool exhausted",
+    "description": "PostgreSQL connection pool is at 95% capacity",
+    "severity": "high",
+    "source": "prometheus"
+}
+
+### Get specific alert (replace with actual alert ID)
+GET http://localhost:8080/alerts/{{alert_id}} HTTP/1.1
+
+### Acknowledge alert
+POST http://localhost:8080/alerts/{{alert_id}}/ack HTTP/1.1
+
+### Un-acknowledge alert
+POST http://localhost:8080/alerts/{{alert_id}}/unack HTTP/1.1
+
+### Close alert
+POST http://localhost:8080/alerts/{{alert_id}}/close HTTP/1.1
+
+# ========================================
+# USERS API TESTS
+# ========================================
+
+### Get all users
+GET http://localhost:8080/users HTTP/1.1
+
+### Create new user - Platform Engineer
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Evgenii Druzhinin",
+    "email": "evgenii.druzhinin@company.com",
+    "phone": "+1234567890",
+    "role": "engineer",
+    "team": "Platform Team",
+    "fcm_token": "fcm_token_evgenii_123"
+}
+
+### Create new user - Backend Engineer
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "John Smith",
+    "email": "john.smith@company.com",
+    "phone": "+1234567891",
+    "role": "engineer",
+    "team": "Backend Team",
+    "fcm_token": "fcm_token_john_456"
+}
+
+### Create new user - Team Lead
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Sarah Johnson",
+    "email": "sarah.johnson@company.com",
+    "phone": "+1234567892",
+    "role": "manager",
+    "team": "Platform Team",
+    "fcm_token": "fcm_token_sarah_789"
+}
+
+### Get specific user (replace with actual user ID)
+GET http://localhost:8080/users/{{user_id}} HTTP/1.1
+
+### Update user
+PUT http://localhost:8080/users/{{user_id}} HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Evgenii Druzhinin",
+    "email": "evgenii.druzhinin@company.com",
+    "phone": "+1234567890",
+    "role": "senior_engineer",
+    "team": "Platform Team",
+    "fcm_token": "fcm_token_evgenii_updated_123"
+}
+
+### Delete user (soft delete)
+DELETE http://localhost:8080/users/{{user_id}} HTTP/1.1
+
+# ========================================
+# ON-CALL MANAGEMENT API TESTS
+# ========================================
+
+### Get current on-call user
+GET http://localhost:8080/oncall/current HTTP/1.1
+
+### Create on-call schedule - Today 8AM to 4PM
+POST http://localhost:8080/oncall/schedules HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": "{{user_id}}",
+    "start_time": "2025-06-14T08:00:00Z",
+    "end_time": "2025-06-14T16:00:00Z"
+}
+
+### Create on-call schedule - Today 4PM to 12AM
+POST http://localhost:8080/oncall/schedules HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": "{{user_id_2}}",
+    "start_time": "2025-06-14T16:00:00Z",
+    "end_time": "2025-06-15T00:00:00Z"
+}
+
+### Create on-call schedule - Weekend shift
+POST http://localhost:8080/oncall/schedules HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": "{{user_id_3}}",
+    "start_time": "2025-06-15T00:00:00Z",
+    "end_time": "2025-06-16T08:00:00Z"
+}
+
+### Get all on-call schedules
+GET http://localhost:8080/oncall/schedules HTTP/1.1
+
+# ========================================
+# DASHBOARD & OTHER ENDPOINTS
+# ========================================
+
+### Get dashboard data
+GET http://localhost:8080/dashboard HTTP/1.1
+
+### Get uptime data
+GET http://localhost:8080/uptime HTTP/1.1
+
+# ========================================
+# WORKFLOW TESTS - Complete scenarios
+# ========================================
+
+### SCENARIO 1: Setup users and on-call schedule, then create alert
+# 1. Create user first
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Test Engineer",
+    "email": "test@company.com",
+    "phone": "+1111111111",
+    "role": "engineer",
+    "team": "Test Team",
+    "fcm_token": "test_fcm_token"
+}
+
+### 2. Create on-call schedule for this user (current time)
+POST http://localhost:8080/oncall/schedules HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": "{{user_id_from_step_1}}",
+    "start_time": "2025-06-14T00:00:00Z",
+    "end_time": "2025-06-15T23:59:59Z"
+}
+
+### 3. Create alert (should auto-assign to on-call user)
+POST http://localhost:8080/alerts HTTP/1.1
+Content-Type: application/json
+
+{
+    "title": "Test Auto-Assignment Alert",
+    "description": "This alert should be auto-assigned to the on-call user",
+    "severity": "medium",
+    "source": "test"
+}
+
+### 4. Check if alert was assigned correctly
 GET http://localhost:8080/alerts HTTP/1.1
 
-###
-GET http://localhost:8080/alerts/d648ec1e-cbc0-4e4a-b510-977524e6d6f2 HTTP/1.1
+### 5. Check current on-call user
+GET http://localhost:8080/oncall/current HTTP/1.1
 
-###
+# ========================================
+# ERROR HANDLING TESTS
+# ========================================
 
-POST http://localhost:8080/alerts/d648ec1e-cbc0-4e4a-b510-977524e6d6f2/ack HTTP/1.1
+### Test invalid alert creation (missing required fields)
+POST http://localhost:8080/alerts HTTP/1.1
+Content-Type: application/json
 
-###
+{
+    "description": "Alert without title"
+}
 
-POST http://localhost:8080/alerts/1/unack HTTP/1.1
+### Test invalid user creation (missing email)
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "User Without Email",
+    "role": "engineer",
+    "team": "Test Team"
+}
+
+### Test get non-existent alert
+GET http://localhost:8080/alerts/non-existent-id HTTP/1.1
+
+### Test get non-existent user
+GET http://localhost:8080/users/non-existent-id HTTP/1.1
+
+### Test on-call when no one is on-call
+# (This will work only if no on-call schedules are active)
+# GET http://localhost:8080/oncall/current HTTP/1.1

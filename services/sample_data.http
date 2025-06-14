@@ -1,0 +1,157 @@
+# ========================================
+# SAMPLE DATA SETUP
+# ========================================
+# Run these requests in order to setup sample data
+
+### 1. Create Platform Team Engineer
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Evgenii Druzhinin",
+    "email": "evgenii.druzhinin@company.com",
+    "phone": "+1234567890",
+    "role": "engineer",
+    "team": "Platform Team",
+    "fcm_token": "fcm_token_evgenii_123"
+}
+
+### 2. Create Backend Team Engineer
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "John Smith",
+    "email": "john.smith@company.com",
+    "phone": "+1234567891",
+    "role": "engineer",
+    "team": "Backend Team",
+    "fcm_token": "fcm_token_john_456"
+}
+
+### 3. Create Team Lead
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Sarah Johnson",
+    "email": "sarah.johnson@company.com",
+    "phone": "+1234567892",
+    "role": "manager",
+    "team": "Platform Team",
+    "fcm_token": "fcm_token_sarah_789"
+}
+
+### 4. Create DevOps Engineer
+POST http://localhost:8080/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Mike Wilson",
+    "email": "mike.wilson@company.com",
+    "phone": "+1234567893",
+    "role": "senior_engineer",
+    "team": "DevOps Team",
+    "fcm_token": "fcm_token_mike_101"
+}
+
+### 5. Get all users to copy IDs
+GET http://localhost:8080/users HTTP/1.1
+
+# ========================================
+# COPY USER IDs FROM ABOVE RESPONSE AND USE BELOW
+# ========================================
+
+### 6. Create On-Call Schedule - Morning Shift (8AM-4PM)
+# Replace USER_ID_1 with actual ID from Evgenii
+POST http://localhost:8080/oncall/schedules HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": "e8a4115d-0376-487c-85a5-eb6d13b209a5",
+    "start_time": "2025-06-14T08:00:00Z",
+    "end_time": "2025-06-14T16:00:00Z"
+}
+
+### 7. Create On-Call Schedule - Evening Shift (4PM-12AM)
+# Replace USER_ID_2 with actual ID from John
+POST http://localhost:8080/oncall/schedules HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": "8456a6a3-b5b0-4690-908a-e8b5d07ab361",
+    "start_time": "2025-06-14T16:00:00Z",
+    "end_time": "2025-06-15T00:00:00Z"
+}
+
+### 8. Create On-Call Schedule - Night Shift (12AM-8AM)
+# Replace USER_ID_3 with actual ID from Sarah
+POST http://localhost:8080/oncall/schedules HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": "5058431a-1e75-4b36-aef5-278e095b5974",
+    "start_time": "2025-06-15T00:00:00Z",
+    "end_time": "2025-06-15T08:00:00Z"
+}
+
+### 9. Create Weekend On-Call Schedule
+# Replace USER_ID_4 with actual ID from Mike
+POST http://localhost:8080/oncall/schedules HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": "b79d9b1a-6cf5-4144-a80b-243144f2d584",
+    "start_time": "2025-06-15T08:00:00Z",
+    "end_time": "2025-06-16T08:00:00Z"
+}
+
+### 10. Verify current on-call user
+GET http://localhost:8080/oncall/current HTTP/1.1
+
+### 11. Create sample alerts (will auto-assign to current on-call user)
+POST http://localhost:8080/alerts HTTP/1.1
+Content-Type: application/json
+
+{
+    "title": "[Datadog] [P1] High CPU usage on prod-web-01",
+    "description": "CPU usage has exceeded 90% for the last 5 minutes",
+    "severity": "critical",
+    "source": "datadog"
+}
+
+### 12. Create another alert
+POST http://localhost:8080/alerts HTTP/1.1
+Content-Type: application/json
+
+{
+    "title": "[Prometheus] Database connection pool exhausted",
+    "description": "PostgreSQL connection pool is at 95% capacity",
+    "severity": "high",
+    "source": "prometheus"
+}
+
+### 13. Create medium priority alert
+POST http://localhost:8080/alerts HTTP/1.1
+Content-Type: application/json
+
+{
+    "title": "[Grafana] Disk space warning on prod-db-01",
+    "description": "Disk usage is at 85% on /var/lib/postgresql",
+    "severity": "medium",
+    "source": "grafana"
+}
+
+### 14. Verify all alerts were created and assigned
+GET http://localhost:8080/alerts HTTP/1.1
+
+# ========================================
+# QUICK SETUP SCRIPT (Copy-paste friendly)
+# ========================================
+
+# Step 1: Create users (run all 4 POST requests above)
+# Step 2: Copy user IDs from GET /users response
+# Step 3: Update schedules with real user IDs
+# Step 4: Create schedules (run all 4 POST requests)
+# Step 5: Create sample alerts (run all 3 POST requests)
+# Step 6: Verify with GET /alerts and GET /oncall/current 

@@ -22,7 +22,7 @@ func NewAlertService(pg *sql.DB, redis *redis.Client) *AlertService {
 }
 
 func (s *AlertService) ListAlerts() ([]db.Alert, error) {
-	rows, err := s.PG.Query(`SELECT id, title, description, status, created_at, updated_at, severity, source FROM alerts ORDER BY created_at DESC LIMIT 100`)
+	rows, err := s.PG.Query(`SELECT id, title, description, status, created_at, updated_at, severity, source, assigned_to, assigned_at FROM alerts ORDER BY created_at DESC LIMIT 100`)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,18 @@ func (s *AlertService) ListAlerts() ([]db.Alert, error) {
 	var alerts []db.Alert
 	for rows.Next() {
 		var a db.Alert
-		rows.Scan(&a.ID, &a.Title, &a.Description, &a.Status, &a.CreatedAt, &a.UpdatedAt, &a.Severity, &a.Source)
+		var assignedTo sql.NullString
+		var assignedAt sql.NullTime
+		err := rows.Scan(&a.ID, &a.Title, &a.Description, &a.Status, &a.CreatedAt, &a.UpdatedAt, &a.Severity, &a.Source, &assignedTo, &assignedAt)
+		if err != nil {
+			continue
+		}
+		if assignedTo.Valid {
+			a.AssignedTo = assignedTo.String
+		}
+		if assignedAt.Valid {
+			a.AssignedAt = &assignedAt.Time
+		}
 		alerts = append(alerts, a)
 	}
 	return alerts, nil
@@ -45,8 +56,18 @@ func (s *AlertService) CreateAlertFromRequest(c *gin.Context) (db.Alert, error) 
 	alert.Status = "new"
 	alert.CreatedAt = time.Now()
 	alert.UpdatedAt = time.Now()
-	_, err := s.PG.Exec(`INSERT INTO alerts (id, title, description, status, created_at, updated_at, severity, source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-		alert.ID, alert.Title, alert.Description, alert.Status, alert.CreatedAt, alert.UpdatedAt, alert.Severity, alert.Source)
+
+	// Auto-assign to current on-call user
+	userService := NewUserService(s.PG, s.Redis)
+	onCallUser, err := userService.GetCurrentOnCallUser()
+	if err == nil {
+		alert.AssignedTo = onCallUser.ID
+		now := time.Now()
+		alert.AssignedAt = &now
+	}
+
+	_, err = s.PG.Exec(`INSERT INTO alerts (id, title, description, status, created_at, updated_at, severity, source, assigned_to, assigned_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		alert.ID, alert.Title, alert.Description, alert.Status, alert.CreatedAt, alert.UpdatedAt, alert.Severity, alert.Source, alert.AssignedTo, alert.AssignedAt)
 	if err != nil {
 		return alert, err
 	}
@@ -57,25 +78,40 @@ func (s *AlertService) CreateAlertFromRequest(c *gin.Context) (db.Alert, error) 
 
 func (s *AlertService) GetAlert(id string) (db.Alert, error) {
 	var a db.Alert
-	err := s.PG.QueryRow(`SELECT id, title, description, status, created_at, updated_at, severity, source FROM alerts WHERE id=$1`, id).
-		Scan(&a.ID, &a.Title, &a.Description, &a.Status, &a.CreatedAt, &a.UpdatedAt, &a.Severity, &a.Source)
+	var assignedTo sql.NullString
+	var assignedAt sql.NullTime
+	err := s.PG.QueryRow(`SELECT id, title, description, status, created_at, updated_at, severity, source, assigned_to, assigned_at FROM alerts WHERE id=$1`, id).
+		Scan(&a.ID, &a.Title, &a.Description, &a.Status, &a.CreatedAt, &a.UpdatedAt, &a.Severity, &a.Source, &assignedTo, &assignedAt)
+	if assignedTo.Valid {
+		a.AssignedTo = assignedTo.String
+	}
+	if assignedAt.Valid {
+		a.AssignedAt = &assignedAt.Time
+	}
 	return a, err
 }
 
 func (s *AlertService) AckAlert(id string) error {
 	now := time.Now()
-	_, err := s.PG.Exec(`UPDATE alerts SET status='acked', acked_at=$1, updated_at=$1 WHERE id=$2`, now, id)
+	_, err := s.PG.Exec(`UPDATE alerts SET status = 'acked', acked_at = $1, updated_at = $2 WHERE id = $3`, now, now, id)
 	return err
 }
 
 func (s *AlertService) UnackAlert(id string) error {
 	now := time.Now()
-	_, err := s.PG.Exec(`UPDATE alerts SET status='new', updated_at=$1 WHERE id=$2`, now, id)
+	_, err := s.PG.Exec(`UPDATE alerts SET status = 'new', acked_at = NULL, updated_at = $1 WHERE id = $2`, now, id)
 	return err
 }
 
 func (s *AlertService) CloseAlert(id string) error {
 	now := time.Now()
-	_, err := s.PG.Exec(`UPDATE alerts SET status='closed', updated_at=$1 WHERE id=$2`, now, id)
+	_, err := s.PG.Exec(`UPDATE alerts SET status = 'closed', updated_at = $1 WHERE id = $2`, now, id)
+	return err
+}
+
+func (s *AlertService) AssignAlertToUser(alertID, userID string) error {
+	now := time.Now()
+	_, err := s.PG.Exec(`UPDATE alerts SET assigned_to = $1, assigned_at = $2, updated_at = $3 WHERE id = $4`,
+		userID, now, now, alertID)
 	return err
 }
